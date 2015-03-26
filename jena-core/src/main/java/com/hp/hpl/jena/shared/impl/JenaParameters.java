@@ -77,6 +77,17 @@ public class JenaParameters {
       * Hence, the default is the require unknown datatypes to be registered.
       */
      public static boolean enableSilentAcceptanceOfUnknownDatatypes = true;
+     
+     /**
+      * Set this flag to true to allow discovery of custom linked datatypes. 
+      * If an unknown datatype is encountered whilst this flag is 'true', then 
+      * Jena will attempt to download a javascript definition of the datatype at 
+      * the location of its URI. If such a definition is found, the custom 
+      * linked datatype will be automatically registered. If no such definition 
+      * is found, then an unkown datatype will be registered (as a type whose 
+      * value and lexical spaces are identical).
+      */
+     public static boolean enableDiscoveryOfCustomLinkedDatatypes = false;
 
     /**
      * Set this flag to true to switch on checking of surrounding whitespace

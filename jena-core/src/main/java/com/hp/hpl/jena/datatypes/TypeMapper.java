@@ -18,6 +18,7 @@
 
 package com.hp.hpl.jena.datatypes;
 
+import com.hp.hpl.jena.datatypes.lindt.LinkedDatatype;
 import java.net.URI;
 import java.net.URL;
 import java.util.HashMap;
@@ -124,7 +125,14 @@ public class TypeMapper {
             } else {
                 // Unknown datatype
                 if (JenaParameters.enableSilentAcceptanceOfUnknownDatatypes) {
-                    dtype = new BaseDatatype(uri);
+                    if (JenaParameters.enableDiscoveryOfCustomLinkedDatatypes) {
+                        // attempt to discover new custom linked datatypes on the fly
+                        LinkedDatatype.attemptDiscovery(uri, theTypeMap);
+                        dtype = uriToDT.get(uri);
+                    }
+                    if (dtype == null) {
+                        dtype = new BaseDatatype(uri);
+                    }
                     registerDatatype(dtype);
                 } else {
                     throw new DatatypeFormatException(
