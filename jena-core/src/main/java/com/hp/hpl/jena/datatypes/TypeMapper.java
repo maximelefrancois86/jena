@@ -15,46 +15,44 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package com.hp.hpl.jena.datatypes;
 
-import com.hp.hpl.jena.datatypes.lindt.LinkedDatatype;
+import com.hp.hpl.jena.datatypes.lindt.LindtEngine;
+import com.hp.hpl.jena.datatypes.lindt.LindtException;
 import java.net.URI;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Iterator;
 
 import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
-import com.hp.hpl.jena.datatypes.xsd.impl.RDFLangString ;
+import com.hp.hpl.jena.datatypes.xsd.impl.RDFLangString;
 import com.hp.hpl.jena.datatypes.xsd.impl.XMLLiteralType;
 import com.hp.hpl.jena.shared.impl.JenaParameters;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
- * The TypeMapper provides a global registry of known datatypes.
- * The datatypes can be retrieved by their URI or from the java class
- * that is used to represent them.
+ * The TypeMapper provides a global registry of known datatypes. The datatypes
+ * can be retrieved by their URI or from the java class that is used to
+ * represent them.
  */
-
 // Added extended set of class mappings and getTypeByClass
 // as suggested by Thorsten Moeller. der 8/5/09
-
 public class TypeMapper {
 
 //=======================================================================
 // Statics
-
     /**
-     * Return the single global instance of the TypeMapper.
-     * Done this way rather than simply making the static
-     * field directly accessible to allow us to dynamically
-     * replace the entire mapper table if needed.
+     * Return the single global instance of the TypeMapper. Done this way rather
+     * than simply making the static field directly accessible to allow us to
+     * dynamically replace the entire mapper table if needed.
      */
     public static TypeMapper getInstance() {
         return theTypeMap;
     }
 
     public static void setInstance(TypeMapper typeMapper) {
-        theTypeMap = typeMapper ;
+        theTypeMap = typeMapper;
     }
 
     /**
@@ -65,11 +63,14 @@ public class TypeMapper {
     /**
      * Static initializer. Adds builtin datatypes to the mapper.
      */
-    static { reset() ; }
+    static {
+        reset();
+    }
+
     public static void reset() {
         theTypeMap = new TypeMapper();
         theTypeMap.registerDatatype(XMLLiteralType.theXMLLiteralType);
-        theTypeMap.registerDatatype(RDFLangString.rdfLangString) ;
+        theTypeMap.registerDatatype(RDFLangString.rdfLangString);
         XSDDatatype.loadXSDSimpleTypes(theTypeMap);
 
         // add primitive types
@@ -90,31 +91,36 @@ public class TypeMapper {
     }
 
     public TypeMapper() {
-   	 super();
+        super();
     }
 
 //=======================================================================
 // Variables
-
-    /** Map from uri to datatype */
+    /**
+     * Map from uri to datatype
+     */
     private final HashMap<String, RDFDatatype> uriToDT = new HashMap<>();
 
-    /** Map from java class to datatype */
+    /**
+     * Map from java class to datatype
+     */
     private final HashMap<Class<?>, RDFDatatype> classToDT = new HashMap<>();
 
 //=======================================================================
 // Methods
-
-
     /**
-     * Version of getTypeByName which will treat unknown URIs as typed
-     * literals but with just the default implementation
+     * Version of getTypeByName which will treat unknown URIs as follows: if
+     * JenaParameters.enableSilentAcceptanceOfUnknownDatatypes is true and
+     * JenaParameters.enableDiscoveryOfCustomLinkedDatatypes is true, then the
+     * definition of the custom datatype will be looked for on the internet. If
+     * it is not found, then a typed literals with just the default
+     * implementation is returned
      *
      * @param uri the URI of the desired datatype
-     * @return Datatype the datatype definition
-     * registered at uri, if there is no such registered type it
-     * returns a new instance of the default datatype implementation, if the
-     * uri is null it returns null (indicating a plain RDF literal).
+     * @return Datatype the datatype definition registered at uri, if there is
+     * no such registered type it returns a new instance of the default datatype
+     * implementation, if the uri is null it returns null (indicating a plain
+     * RDF literal).
      */
     public RDFDatatype getSafeTypeByName(final String uri) {
         RDFDatatype dtype = uriToDT.get(uri);
@@ -126,9 +132,12 @@ public class TypeMapper {
                 // Unknown datatype
                 if (JenaParameters.enableSilentAcceptanceOfUnknownDatatypes) {
                     if (JenaParameters.enableDiscoveryOfCustomLinkedDatatypes) {
-                        // attempt to discover new custom linked datatypes on the fly
-                        LinkedDatatype.attemptDiscovery(uri, theTypeMap);
-                        dtype = uriToDT.get(uri);
+                        try {
+                            // attempt to discover new custom linked datatypes on the fly
+                            dtype = LindtEngine.get().getDatatype(uri);
+                        } catch (LindtException ex) {
+                            Logger.getLogger(TypeMapper.class.getName()).log(Level.WARNING, null, ex);
+                        }
                     }
                     if (dtype == null) {
                         dtype = new BaseDatatype(uri);
@@ -136,7 +145,7 @@ public class TypeMapper {
                     registerDatatype(dtype);
                 } else {
                     throw new DatatypeFormatException(
-                        "Attempted to created typed literal using an unknown datatype - " + uri);
+                            "Attempted to created typed literal using an unknown datatype - " + uri);
                 }
             }
         }
@@ -145,7 +154,8 @@ public class TypeMapper {
 
     /**
      * Lookup a known datatype. An unkown datatype or a datatype with uri null
-     * will return null will mean that the value will be treated as a old-style plain literal.
+     * will return null will mean that the value will be treated as a old-style
+     * plain literal.
      *
      * @param uri the URI of the desired datatype
      * @return Datatype the datatype definition of null if not known.
@@ -155,12 +165,12 @@ public class TypeMapper {
     }
 
     /**
-     * Method getTypeByValue. Look up a datatype suitable for representing
-     * the given java value object.
+     * Method getTypeByValue. Look up a datatype suitable for representing the
+     * given java value object.
      *
      * @param value a value instance to be represented
-     * @return Datatype a datatype whose value space matches the java class
-     * of <code>value</code>
+     * @return Datatype a datatype whose value space matches the java class of
+     * <code>value</code>
      */
     public RDFDatatype getTypeByValue(final Object value) {
         return classToDT.get(value.getClass());
@@ -174,8 +184,8 @@ public class TypeMapper {
     }
 
     /**
-     * Look up a datatype suitable for representing instances of the
-     * given Java class.
+     * Look up a datatype suitable for representing instances of the given Java
+     * class.
      *
      * @param clazz a Java class to be represented
      * @return a datatype whose value space matches the given java class

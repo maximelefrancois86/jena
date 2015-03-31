@@ -16,20 +16,12 @@
 package com.hp.hpl.jena.datatypes.lindt;
 
 import com.hp.hpl.jena.datatypes.BaseDatatype;
-import com.hp.hpl.jena.datatypes.TypeMapper;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.Map;
+import com.hp.hpl.jena.datatypes.DatatypeFormatException;
+import com.hp.hpl.jena.datatypes.RDFDatatype;
+import com.hp.hpl.jena.graph.impl.LiteralLabel;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.script.Invocable;
 import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
 /**
@@ -37,61 +29,148 @@ import javax.script.ScriptException;
  * @author maxime.lefrancois
  */
 public class LinkedDatatype extends BaseDatatype {
-    
-    private static final ScriptEngineManager factory = new ScriptEngineManager();
-    private static final ScriptEngine engine = factory.getEngineByName("JavaScript");
 
-    /** Map of already discovered datatypes */
-    public static final Map<String, LinkedDatatype> datatypes = new HashMap<>();
+    private final LindtEngine engine;
 
-    public LinkedDatatype(String uri) {
+    LinkedDatatype(String uri, LindtEngine engine) {
         super(uri);
-        
+        this.engine = engine;
     }
-    
-    public static void attemptDiscovery(String uri, TypeMapper tm) {
-        try {
-            URL dest = new URL(uri);
-            HttpURLConnection yc = (HttpURLConnection) dest.openConnection();
-            yc.setInstanceFollowRedirects(true);
-            yc.setUseCaches(false);
-            yc.setRequestProperty("Accept", "application/javascript");
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(yc.getInputStream()))) {
-                engine.eval(br); // security and stability concerns !
-            }
-            engine.eval("get "); // security and stability concerns !
-        } catch (MalformedURLException ex) {
-            Logger.getLogger(LinkedDatatype.class.getName()).log(Level.INFO, null, ex);
-        } catch (IOException | ScriptException ex) {
-            Logger.getLogger(LinkedDatatype.class.getName()).log(Level.INFO, null, ex);
-        }
-        
-// for each datatype that has been discovered
-//            tm.registerDatatype(dt);
-        
-// for each datatype that has been discovered            
-//            tm.registerDatatype(dt);
 
+    @Override
+    public String getURI() {
+        return uri;
     }
     
-    public static void main(String[] args) throws NoSuchMethodException {
+    /**
+     * Convert a value of this datatype out
+     * to lexical form.
+     */
+    @Override
+    public String unparse(Object value) {
+        return ((TypedValue)value).lexicalValue;
+    }
+    
+    /**
+     * Parse a lexical form of this datatype to a value
+     *
+     * @throws DatatypeFormatException if the lexical form is not legal
+     */
+    @Override
+    public Object parse(String lexicalForm) throws DatatypeFormatException {
         try {
-            engine.eval("function load() {\n" +
-"	res = {};\n" +
-"	res[\"http://ex.org/dt1\"] = { \n" +
-"		uri:\"http://ex.org/dt1\",\n" +
-"		isValid: function(lexicalForm) {\n" +
-"			return /^\\(\\s*([0-9]+)\\s*,\\s*([0-9]+)\\s*\\)$/.test(lexicalForm);\n" +
-"		}\n" +
-"	};\n" +
-"	return res;\n" +
-"}");
-            Invocable e = (Invocable) engine;
-            Object o = e.invokeFunction("load");
-            System.out.println(o);
+            ScriptEngine e = engine.getEngine();
+            e.put("uri", getURI());
+            e.put("lexicalForm", lexicalForm);
+            e.eval("var Datatype = lindt.getDatatype(uri);");
+            e.eval("var literal = new Datatype(lexicalForm);");
+            return new TypedValue(lexicalForm, getURI());
         } catch (ScriptException ex) {
-            Logger.getLogger(LinkedDatatype.class.getName()).log(Level.SEVERE, null, ex);
+            throw new DatatypeFormatException(lexicalForm, this, ex.getMessage());
         }
+    }
+
+    @Override
+    public boolean isValidLiteral(LiteralLabel lit) {
+        if(super.isValidLiteral(lit)) {
+            return true;
+        }
+        ScriptEngine e = engine.getEngine();
+        e.put("uri1", getURI());
+        e.put("uri2", lit.getDatatypeURI());
+        e.put("lexicalForm2", lit.getLexicalForm());
+        try {
+            e.eval("var Datatype1 = lindt.getDatatype(uri1);");
+            e.eval("var Datatype2 = lindt.getDatatype(uri2);");
+            e.eval("var literal2 = new Datatype2(lexicalForm2);");
+            try {
+                e.eval("var literal1 = new Datatype1(literal2);");
+                return true;                
+            } catch (ScriptException ex) {}
+            try {
+                e.eval("var literal1 = literal2.toDatatype(Datatype1);");
+                return true;                
+            } catch (ScriptException ex) {}
+        } catch (ScriptException ex) { }
+        return false;
+    }
+    
+    /**
+     * Compares two instances of values of the given datatype.
+     * This default requires value and datatype equality.
+     */
+    @Override
+    public boolean isEqual(LiteralLabel litLabel1, LiteralLabel litLabel2) {
+        try {
+            ScriptEngine e = engine.getEngine();
+            e.put("uri1", litLabel1.getDatatypeURI());
+            e.put("uri2", litLabel2.getDatatypeURI());
+            e.put("lexicalForm1", litLabel1.getLexicalForm());
+            e.put("lexicalForm2", litLabel2.getLexicalForm());
+            e.eval("var Datatype1 = lindt.getDatatype(uri1);");
+            e.eval("var Datatype2 = lindt.getDatatype(uri2);");
+            e.eval("var literal1 = new Datatype1(lexicalForm1);");
+            e.eval("var literal2 = new Datatype2(lexicalForm2);");
+            boolean eq1 = (boolean) e.eval("literal1.equals(literal2)");
+            boolean eq2 = (boolean) e.eval("literal2.equals(literal1)");
+            return eq1 || eq2;
+        } catch (ScriptException ex) { }
+        return false;
+    }
+    
+    /**
+     * Cannonicalise a java Object value to a normal form.
+     * Primarily used in cases such as xsd:integer to reduce
+     * the Java object representation to the narrowest of the Number
+     * subclasses to ensure that indexing of typed literals works. 
+     */
+    @Override
+    public Object cannonicalise( Object value ) {
+        try {
+            TypedValue typedValue = (TypedValue) value;
+            ScriptEngine e = engine.getEngine();
+            e.put("uri", typedValue.datatypeURI);
+            e.put("lexicalForm", typedValue.lexicalValue);
+            e.eval("var Datatype = lindt.getDatatype(uri);");
+            e.eval("var literal = new Datatype(lexicalForm);");
+            e.eval("var literal2 = literal.canonicalise();");
+            return new TypedValue((String) e.eval("literal2.lexicalValue"), (String) e.eval("literal2.datatypeURI"));
+        } catch (ScriptException ex) { }
+        return value;
+    }
+    
+    /**
+     * Normalization. If the value is narrower than the current data type
+     * (e.g. value is xsd:date but the time is xsd:datetime) returns
+     * the narrower type for the literal. 
+     * If the type is narrower than the value then it may normalize
+     * the value (e.g. set the mask of an XSDDateTime)
+     * Currently only used to narrow gener XSDDateTime objects
+     * to the minimal XSD date/time type.
+     * @param value the current object value
+     * @param dt the currently set data type
+     * @return a narrower version of the datatype based on the actual value range
+     */
+    @Override
+    public RDFDatatype normalizeSubType(Object value, RDFDatatype dt) {
+//        ScriptEngine e = engine.getEngine();
+//        e.put("uri1", getURI());
+//        e.put("uri2", lit.getDatatypeURI());
+//        e.put("lexicalForm2", lit.getLexicalForm());
+//        try {
+//            e.eval("var Datatype1 = lindt.getDatatype(uri1);");
+//            e.eval("var Datatype2 = lindt.getDatatype(uri2);");
+//            e.eval("var literal2 = new Datatype2(lexicalForm2);");
+//            try {
+//                e.eval("var literal1 = new Datatype1(literal2);");
+//                return true;                
+//            } catch (ScriptException ex) {}
+//            try {
+//                e.eval("var literal1 = literal2.toDatatype(Datatype1);");
+//                return true;                
+//            } catch (ScriptException ex) {}
+//        } catch (ScriptException ex) { }
+        return dt;
     }
     
 }

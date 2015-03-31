@@ -444,7 +444,7 @@ final /*public*/ class LiteralLabelImpl implements LiteralLabel {
         return false ;
     }
     
-	/** Return true if the literal lable is a string value (RDF 1.0 and RDF 1.1) */ 
+    /** Return true if the literal lable is a string value (RDF 1.0 and RDF 1.1) */ 
     private static boolean isStringValue(LiteralLabel lit) {
         if ( lit.getDatatype() == null )
             // RDF 1.0
