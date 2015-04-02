@@ -57,17 +57,11 @@ public class LindtEngine {
     private final Map<String, LinkedDatatype> datatypes;
 
     private LindtEngine() throws LindtException {
-        try {
-            ScriptEngineManager factory = new ScriptEngineManager();
-            this.engine = factory.getEngineByName("JavaScript");
-            File file = new File("lindt/lindt.js");
-            FileReader reader = new FileReader(file);
-            engine.eval(reader);
-            loaded = new HashSet<>();
-            datatypes = new HashMap<>();
-        } catch (FileNotFoundException | ScriptException ex) {
-            throw new LindtException(ex);
-        } 
+        ScriptEngineManager factory = new ScriptEngineManager();
+        this.engine = factory.getEngineByName("JavaScript");
+        load("http://www.maxime-lefrancois.info/lindt/lindt.js");
+        loaded = new HashSet<>();
+        datatypes = new HashMap<>();
     }
 
     public LinkedDatatype getDatatype(String uri) throws LindtException {
@@ -88,6 +82,7 @@ public class LindtEngine {
         String fileuri = uri.contains("#") ? uri.substring(0, uri.indexOf("#")) : uri;
         if(!loaded.contains(fileuri)) {
             load(fileuri);
+            loaded.add(fileuri);
             return getDatatype(uri);
         }
         return null;
