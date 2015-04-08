@@ -35,6 +35,7 @@ public enum ValueSpaceClassification {
     
     VSPACE_STRING, VSPACE_LANG,
     VSPACE_BOOLEAN,
+    VSPACE_CUSTOM,
     VSPACE_UNKNOWN,
     VSPACE_DIFFERENT
 }

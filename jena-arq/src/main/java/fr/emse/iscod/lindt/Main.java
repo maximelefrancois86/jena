@@ -15,7 +15,9 @@
  */
 package fr.emse.iscod.lindt;
 
-import com.hp.hpl.jena.graph.Node;
+import com.hp.hpl.jena.datatypes.BaseDatatype.TypedValue;
+import com.hp.hpl.jena.datatypes.TypeMapper;
+import com.hp.hpl.jena.datatypes.lindt.LinkedDatatype;
 import com.hp.hpl.jena.ontology.OntModelSpec;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryExecution;
@@ -63,6 +65,7 @@ public class Main {
                 
         JenaParameters.enableDiscoveryOfCustomLinkedDatatypes = true;
         String dturi =  "http://www.maxime-lefrancois.info/lindt/datatypes.js#length";
+        LinkedDatatype ldt = (LinkedDatatype) TypeMapper.getInstance().getSafeTypeByName(dturi);
         
         Model model1 = ModelFactory.createOntologyModel(OntModelSpec.RDFS_MEM);
         Resource a = model1.createResource("http://ex.org/a");
@@ -73,15 +76,17 @@ public class Main {
             model1.add(a, p, l);
         }
            
-        String queryString = "SELECT ?o WHERE { ?x <http://ex.org/length> ?o } ORDER BY ?o " ;
+        String queryString = "SELECT ?o1 WHERE { ?x <http://ex.org/length> ?o1 FILTER ( ?o1<=\"153m\"^^<http://www.maxime-lefrancois.info/lindt/datatypes.js#length> ) } ORDER BY ?o1 " ;
         Query query = QueryFactory.create(queryString) ;
         try (QueryExecution qexec = QueryExecutionFactory.create(query, model1)) {
           ResultSet results = qexec.execSelect() ;
           for ( ; results.hasNext() ; )
           {
             QuerySolution soln = results.nextSolution() ;
-            Literal l = soln.getLiteral("o") ;   // Get a result variable - must be a literal
-              System.out.println(l);
+            Literal l1 = soln.getLiteral("o1") ;   // Get a result variable - must be a literal
+            String normalized = ((TypedValue) ldt.cannonicalise(ldt.parse(l1.getLexicalForm()))).lexicalValue;
+            System.out.println(l1 + " < 153m -- in meters: " + normalized);
+                          
           }
         }
 
