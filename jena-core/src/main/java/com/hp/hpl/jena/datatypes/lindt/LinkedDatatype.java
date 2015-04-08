@@ -117,7 +117,7 @@ public class LinkedDatatype extends BaseDatatype {
             e.eval("var Datatype = lindt.getDatatype(uri);");
             e.eval("var literal = new Datatype(lexicalForm);");
             e.eval("var literal2 = literal.cannonicalise();");
-            return new TypedValue((String) e.eval("literal2.lexicalValue"), (String) e.eval("literal2.datatype.uri"));
+            return new TypedValue((String) e.eval("literal2.lexicalForm"), (String) e.eval("literal2.datatype.uri"));
         } catch (ScriptException ex) { }
         return value;
     }
