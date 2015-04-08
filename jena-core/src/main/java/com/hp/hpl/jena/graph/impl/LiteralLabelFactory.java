@@ -32,7 +32,7 @@ public class LiteralLabelFactory
     // In RDF 1.0, "abc" has no datatype and is a different term to "abc"^^xsd:string
     // In RDF 1.0, "abc"@en has no datatype.
     //
-    // In RDF 1.1, "abc" has no datatype xsd:string and is the same term as "abc"^^xsd:string
+    // In RDF 1.1, "abc" has datatype xsd:string and is the same term as "abc"^^xsd:string
     // In RDF 1.1, "abc"@en has datatype rdf:langString.
     
     private static final RDFDatatype dtSLangString = NodeFactory.getType(RDF.Nodes.langString.getURI()) ;

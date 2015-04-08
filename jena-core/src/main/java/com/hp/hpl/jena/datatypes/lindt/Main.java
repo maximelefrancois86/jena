@@ -1,5 +1,6 @@
 package com.hp.hpl.jena.datatypes.lindt;
 
+import com.hp.hpl.jena.datatypes.BaseDatatype.TypedValue;
 import com.hp.hpl.jena.datatypes.RDFDatatype;
 import com.hp.hpl.jena.datatypes.TypeMapper;
 import com.hp.hpl.jena.ontology.OntModelSpec;
@@ -26,6 +27,7 @@ public class Main {
     public static void test1() {
         JenaParameters.enableDiscoveryOfCustomLinkedDatatypes = true;
         String dturi =  "http://www.maxime-lefrancois.info/lindt/datatypes.js#length";
+        RDFDatatype lengthdt = TypeMapper.getInstance().getSafeTypeByName(dturi);
         
         Model model1 = ModelFactory.createOntologyModel(OntModelSpec.RDFS_MEM);
         Resource r1 = model1.createResource("http://ex.org/a");
@@ -38,7 +40,9 @@ public class Main {
         Literal l2 = model1.createTypedLiteral("1km", dturi);
         Statement s = model1.createStatement(r2, p2, l2);
         System.out.println(model1.contains(s));
-     
+        
+        System.out.println(((TypedValue) lengthdt.cannonicalise(lengthdt.parse(l2.getLexicalForm()))).lexicalValue);
+        
         
         
     }
