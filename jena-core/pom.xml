@@ -21,7 +21,7 @@
   <artifactId>jena-core</artifactId>
   <packaging>jar</packaging>
   <name>Apache Jena - Core</name>
-  <version>2.13.1-SNAPSHOT</version>
+  <version>2.13.1-dev-SNAPSHOT</version>
 
   <parent>
     <groupId>org.apache.jena</groupId>
