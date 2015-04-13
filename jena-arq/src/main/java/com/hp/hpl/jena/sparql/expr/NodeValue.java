@@ -67,9 +67,7 @@ import org.slf4j.LoggerFactory;
 import com.hp.hpl.jena.datatypes.DatatypeFormatException;
 import com.hp.hpl.jena.datatypes.RDFDatatype;
 import com.hp.hpl.jena.datatypes.TypeMapper;
-import com.hp.hpl.jena.datatypes.custom.LindtEngine;
-import com.hp.hpl.jena.datatypes.custom.LindtException;
-import com.hp.hpl.jena.datatypes.custom.CustomDatatype;
+import com.hp.hpl.jena.datatypes.CustomDatatype;
 import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.graph.Node;
 import com.hp.hpl.jena.graph.NodeFactory;
@@ -87,8 +85,8 @@ import com.hp.hpl.jena.sparql.serializer.SerializationContext;
 import com.hp.hpl.jena.sparql.util.*;
 import com.hp.hpl.jena.vocabulary.RDF;
 import java.util.logging.Level;
-import javax.script.ScriptEngine;
-import javax.script.ScriptException;
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import jdk.nashorn.internal.runtime.ECMAException;
 
 public abstract class NodeValue extends ExprNode {
     // Maybe:: NodeValueStringLang - strings with language tag
@@ -471,7 +469,7 @@ public abstract class NodeValue extends ExprNode {
         return nv;
     }
 
-   // ----------------------------------------------------------------
+    // ----------------------------------------------------------------
     // ---- Expr interface
     @Override
     public NodeValue eval(Binding binding, FunctionEnv env) {
@@ -585,32 +583,28 @@ public abstract class NodeValue extends ExprNode {
                 // call the javascript function to compare these node values.
                 NodeValueCustom nvc1 = (NodeValueCustom) nv1;
                 NodeValueCustom nvc2 = (NodeValueCustom) nv2;
-
-                try {
-                    ScriptEngine e = LindtEngine.get().getEngine();
-                    e.put("uri1", nvc1.getDatatypeURI());
-                    e.put("uri2", nvc2.getDatatypeURI());
-                    e.put("lexicalForm1", nvc1.getLexicalForm());
-                    e.put("lexicalForm2", nvc2.getLexicalForm());
-                    e.eval("var Datatype1 = lindt.getDatatype(uri1);");
-                    e.eval("var Datatype2 = lindt.getDatatype(uri2);");
-                    e.eval("var literal1 = new Datatype1(lexicalForm1);");
-                    e.eval("var literal2 = new Datatype2(lexicalForm2);");
-                    
-                    Object o1 = e.eval("literal1.equals(literal2)");
-                    if(o1 instanceof Boolean && ((boolean) o1) == true) {
-                        return true;
-                    }
-                    Object o2 = e.eval("literal2.equals(literal1)");
-                    if(o2 instanceof Boolean && ((boolean) o2) == true) {
-                        return true;
-                    }
-                    return false;
-                } catch (ScriptException | LindtException ex) {
-                    raise(new ExprEvalException("Equality test exception: " + nv1 + " and " + nv2 + " with error: " + ex.getMessage()));
-                    throw new ARQInternalErrorException("raise returned (sameValueAs)");
+                if (nvc1.getLexicalForm().equals(nvc2.getLexicalForm()) && nvc1.getDatatypeURI().equals(nvc2.getDatatypeURI())) {
+                    return true;
                 }
-
+                CustomDatatype cdt1 = nvc1.getDatatype();
+                CustomDatatype cdt2 = nvc2.getDatatype();
+                try {
+                    ScriptObjectMirror mirror1 = ((CustomDatatype.CustomTypedValue) cdt1.parse(nvc1.getLexicalForm())).getMirror();
+                    ScriptObjectMirror mirror2 = ((CustomDatatype.CustomTypedValue) cdt2.parse(nvc2.getLexicalForm())).getMirror();
+                    try {
+                        return (boolean) mirror1.callMember("equals", mirror2);
+                    } catch(NullPointerException | ECMAException ex) {
+                        java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member equals.", ex);
+                    }
+                    try {
+                        return (boolean) mirror2.callMember("equals", mirror1);
+                    } catch(NullPointerException | ECMAException ex) {
+                        java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member equals.", ex);
+                    }
+                } catch (DatatypeFormatException ex) {
+                    java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member equals.", ex);
+                   return false;
+                }
             case VSPACE_UNKNOWN: {
                 // One or two unknown value spaces, or one has a lang tag (but not both).
                 Node node1 = nv1.getNode();
@@ -869,41 +863,37 @@ public abstract class NodeValue extends ExprNode {
                     throw new ARQInternalErrorException("NodeValue.raise returned");
                 }
 
-
             case VSPACE_CUSTOM:
-                // Two custom literals
+               // Two custom literals
                 // call the javascript function to compare these node values.
                 NodeValueCustom nvc1 = (NodeValueCustom) nv1;
                 NodeValueCustom nvc2 = (NodeValueCustom) nv2;
-
+                if (nvc1.getLexicalForm().equals(nvc2.getLexicalForm()) && nvc1.getDatatypeURI().equals(nvc2.getDatatypeURI())) {
+                    return 0;
+                }
+                CustomDatatype cdt1 = nvc1.getDatatype();
+                CustomDatatype cdt2 = nvc2.getDatatype();
                 try {
-                    ScriptEngine e = LindtEngine.get().getEngine();
-                    e.put("uri1", nvc1.getDatatypeURI());
-                    e.put("uri2", nvc2.getDatatypeURI());
-                    e.put("lexicalForm1", nvc1.getLexicalForm());
-                    e.put("lexicalForm2", nvc2.getLexicalForm());
-                    e.eval("var Datatype1 = lindt.getDatatype(uri1);");
-                    e.eval("var Datatype2 = lindt.getDatatype(uri2);");
-                    e.eval("var literal1 = new Datatype1(lexicalForm1);");
-                    e.eval("var literal2 = new Datatype2(lexicalForm2);");
-                    
-                    Object o1 = e.eval("literal1.compareTo(literal2)");
-                    if(o1 instanceof Integer) {
-                        return (int) o1;
+                    ScriptObjectMirror mirror1 = ((CustomDatatype.CustomTypedValue) cdt1.parse(nvc1.getLexicalForm())).getMirror();
+                    ScriptObjectMirror mirror2 = ((CustomDatatype.CustomTypedValue) cdt2.parse(nvc2.getLexicalForm())).getMirror();
+                    try {
+                        int comp = (int) mirror1.callMember("compareTo", mirror2);
+                        return comp;
+                    } catch(NullPointerException | ECMAException ex) {
+                    java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member compareTo.", ex);
                     }
-                    Object o2 = e.eval("literal2.compareTo(literal1)");
-                    if(o2 instanceof Integer) {
-                        return (int) o2;
+                    try {
+                        int comp = (int) mirror2.callMember("compareTo", mirror1);
+                        return -comp;
+                    } catch(NullPointerException | ECMAException ex) {
+                    java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member compareTo.", ex);
                     }
-
-                } catch (ScriptException | LindtException ex) {
-                raise(new ExprNotComparableException("Can't compare " + nv1 + " and " + nv2 + " - error: " + ex.getMessage()));
-                    throw new ARQInternalErrorException("NodeValue.raise returned");
+                } catch (DatatypeFormatException ex) {
+                    java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member compareTo.", ex);
                 }
                 raise(new ExprNotComparableException("Can't compare " + nv1 + " and " + nv2));
                 throw new ARQInternalErrorException("NodeValue.raise returned");
-
-             case VSPACE_UNKNOWN: {
+            case VSPACE_UNKNOWN: {
                 // One or two unknown value spaces.
                 Node node1 = nv1.asNode();
                 Node node2 = nv2.asNode();
@@ -1175,7 +1165,6 @@ public abstract class NodeValue extends ExprNode {
     }
 
     // Value representation for all date and time values.
-
     public XMLGregorianCalendar getDateTime() {
         raise(new ExprEvalTypeException("No DateTime value: " + this));
         return null;
