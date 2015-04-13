@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.hp.hpl.jena.datatypes.custom;
+package fr.emse.customdatatypes;
 
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
 import jdk.nashorn.internal.runtime.ECMAException;
@@ -22,17 +22,15 @@ import jdk.nashorn.internal.runtime.ECMAException;
  *
  * @author Maxime Lefrançois
  */
-public interface JSCustomLiteral {
+public interface JSCustomDatatypeFactory {
 
-    String getLexicalForm();
-
-    ScriptObjectMirror getDatatype();
-
-    ScriptObjectMirror cannonicalise();
-
-    boolean equals(ScriptObjectMirror literal);
-
-    int compareTo(ScriptObjectMirror literal);
-
-    ScriptObjectMirror exportTo(ScriptObjectMirror datatype);
+    /**
+     * Gets the custom datatype with the given URI.
+     * 
+     * @param uri The URI of the custom datatype defined in this custom datatype
+     * definition file
+     * @return The Custom Datatype. If not null, MUST conform to the JSCustomDatatype interface.
+     * @throws ECMAException If something went wrong.
+     */
+    ScriptObjectMirror getDatatype(String uri) throws ECMAException;
 }
