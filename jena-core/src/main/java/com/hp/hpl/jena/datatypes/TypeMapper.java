@@ -17,8 +17,7 @@
  */
 package com.hp.hpl.jena.datatypes;
 
-import com.hp.hpl.jena.datatypes.lindt.LindtEngine;
-import com.hp.hpl.jena.datatypes.lindt.LindtException;
+import com.hp.hpl.jena.datatypes.custom.CustomDatatype;
 import java.net.URI;
 import java.net.URL;
 import java.util.HashMap;
@@ -28,8 +27,6 @@ import com.hp.hpl.jena.datatypes.xsd.XSDDatatype;
 import com.hp.hpl.jena.datatypes.xsd.impl.RDFLangString;
 import com.hp.hpl.jena.datatypes.xsd.impl.XMLLiteralType;
 import com.hp.hpl.jena.shared.impl.JenaParameters;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * The TypeMapper provides a global registry of known datatypes. The datatypes
@@ -131,14 +128,10 @@ public class TypeMapper {
             } else {
                 // Unknown datatype
                 if (JenaParameters.enableSilentAcceptanceOfUnknownDatatypes) {
-                    if (JenaParameters.enableDiscoveryOfCustomLinkedDatatypes) {
-                        try {
-                            // attempt to discover new custom linked datatypes on the fly
-                            dtype = LindtEngine.get().getDatatype(uri);
-                        } catch (LindtException ex) {
-                            Logger.getLogger(TypeMapper.class.getName()).log(Level.WARNING, null, ex);
-                        }
-                    }
+//                    if (JenaParameters.enableDiscoveryOfCustomDatatypes) {
+//                        // attempt to discover new custom linked datatypes on the fly
+//                        dtype = CustomDatatype.getCustomDatatype(uri);
+//                    }
                     if (dtype == null) {
                         dtype = new BaseDatatype(uri);
                     }

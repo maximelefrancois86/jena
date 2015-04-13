@@ -20,7 +20,7 @@ package com.hp.hpl.jena.sparql.expr.nodevalue;
 import com.hp.hpl.jena.datatypes.BaseDatatype;
 import com.hp.hpl.jena.datatypes.RDFDatatype;
 import com.hp.hpl.jena.datatypes.TypeMapper;
-import com.hp.hpl.jena.datatypes.lindt.LinkedDatatype;
+import com.hp.hpl.jena.datatypes.custom.CustomDatatype;
 import com.hp.hpl.jena.graph.Node;
 import com.hp.hpl.jena.graph.NodeFactory;
 import com.hp.hpl.jena.sparql.expr.NodeValue;
@@ -34,14 +34,14 @@ import javax.xml.datatype.Duration;
 public class NodeValueCustom extends NodeValue {
 
     private final String lexicalForm;
-    private final LinkedDatatype datatype;
+    private final CustomDatatype datatype;
 
-    public NodeValueCustom(String lexicalForm, LinkedDatatype datatype) {
+    public NodeValueCustom(String lexicalForm, CustomDatatype datatype) {
         this.lexicalForm = lexicalForm;
         this.datatype = datatype;
     }
 
-    public NodeValueCustom(String lexicalForm, LinkedDatatype datatype, Node n) {
+    public NodeValueCustom(String lexicalForm, CustomDatatype datatype, Node n) {
         super(n);
         this.lexicalForm = lexicalForm;
         this.datatype = datatype;

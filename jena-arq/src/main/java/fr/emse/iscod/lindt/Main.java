@@ -17,7 +17,7 @@ package fr.emse.iscod.lindt;
 
 import com.hp.hpl.jena.datatypes.BaseDatatype.TypedValue;
 import com.hp.hpl.jena.datatypes.TypeMapper;
-import com.hp.hpl.jena.datatypes.lindt.LinkedDatatype;
+import com.hp.hpl.jena.datatypes.custom.CustomDatatype;
 import com.hp.hpl.jena.ontology.OntModelSpec;
 import com.hp.hpl.jena.query.Query;
 import com.hp.hpl.jena.query.QueryExecution;
@@ -44,7 +44,7 @@ public class Main {
     }
     
     public static void test1() {
-        JenaParameters.enableDiscoveryOfCustomLinkedDatatypes = true;
+        JenaParameters.enableDiscoveryOfCustomDatatypes = true;
         String dturi =  "http://www.maxime-lefrancois.info/lindt/datatypes.js#length";
         
         Model model1 = ModelFactory.createOntologyModel(OntModelSpec.RDFS_MEM);
@@ -63,9 +63,9 @@ public class Main {
     
     public static void test2() {
                 
-        JenaParameters.enableDiscoveryOfCustomLinkedDatatypes = true;
+        JenaParameters.enableDiscoveryOfCustomDatatypes = true;
         String dturi =  "http://www.maxime-lefrancois.info/lindt/datatypes.js#length";
-        LinkedDatatype ldt = (LinkedDatatype) TypeMapper.getInstance().getSafeTypeByName(dturi);
+        CustomDatatype ldt = (CustomDatatype) TypeMapper.getInstance().getSafeTypeByName(dturi);
         
         Model model1 = ModelFactory.createOntologyModel(OntModelSpec.RDFS_MEM);
         Resource a = model1.createResource("http://ex.org/a");

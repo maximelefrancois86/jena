@@ -13,16 +13,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.hp.hpl.jena.datatypes.lindt;
+package com.hp.hpl.jena.datatypes.custom;
+
+import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import jdk.nashorn.internal.runtime.ECMAException;
 
 /**
  *
- * @author maxime.lefrancois
+ * @author Maxime Lefrançois
  */
-public class LindtException extends Exception {
+public interface JSCustomLiteral {
 
-    public LindtException(Throwable cause) {
-        super(cause);
-    }
-    
+    String getLexicalForm();
+
+    ScriptObjectMirror getDatatype();
+
+    ScriptObjectMirror cannonicalise();
+
+    boolean equals(ScriptObjectMirror literal);
+
+    int compareTo(ScriptObjectMirror literal);
+
+    ScriptObjectMirror exportTo(ScriptObjectMirror datatype);
 }

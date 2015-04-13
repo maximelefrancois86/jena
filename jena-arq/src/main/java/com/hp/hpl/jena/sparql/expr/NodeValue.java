@@ -67,9 +67,9 @@ import org.slf4j.LoggerFactory;
 import com.hp.hpl.jena.datatypes.DatatypeFormatException;
 import com.hp.hpl.jena.datatypes.RDFDatatype;
 import com.hp.hpl.jena.datatypes.TypeMapper;
-import com.hp.hpl.jena.datatypes.lindt.LindtEngine;
-import com.hp.hpl.jena.datatypes.lindt.LindtException;
-import com.hp.hpl.jena.datatypes.lindt.LinkedDatatype;
+import com.hp.hpl.jena.datatypes.custom.LindtEngine;
+import com.hp.hpl.jena.datatypes.custom.LindtException;
+import com.hp.hpl.jena.datatypes.custom.CustomDatatype;
 import com.hp.hpl.jena.datatypes.xsd.XSDDateTime;
 import com.hp.hpl.jena.graph.Node;
 import com.hp.hpl.jena.graph.NodeFactory;
@@ -343,7 +343,7 @@ public abstract class NodeValue extends ExprNode {
         return b ? NodeValue.TRUE : NodeValue.FALSE;
     }
 
-    public static NodeValue makeCustom(String lexicalForm, LinkedDatatype datatype) {
+    public static NodeValue makeCustom(String lexicalForm, CustomDatatype datatype) {
         return new NodeValueCustom(lexicalForm, datatype);
     }
 
@@ -1252,8 +1252,8 @@ public abstract class NodeValue extends ExprNode {
         String lex = lit.getLexicalForm();
         RDFDatatype datatype = lit.getDatatype();
 
-        if (datatype instanceof LinkedDatatype) {
-            return new NodeValueCustom(lex, (LinkedDatatype) datatype, node);
+        if (datatype instanceof CustomDatatype) {
+            return new NodeValueCustom(lex, (CustomDatatype) datatype, node);
         }
 
         // Quick check.
