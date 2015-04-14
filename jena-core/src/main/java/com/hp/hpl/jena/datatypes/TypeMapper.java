@@ -84,6 +84,8 @@ public class TypeMapper {
 
         // add mapping for URL class
         theTypeMap.classToDT.put(URL.class, theTypeMap.classToDT.get(URI.class));
+        
+        CustomDatatype.reset();
     }
 
     public TypeMapper() {

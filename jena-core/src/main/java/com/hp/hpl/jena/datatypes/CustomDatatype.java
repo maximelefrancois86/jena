@@ -43,12 +43,11 @@ import jdk.nashorn.internal.runtime.ECMAException;
  */
 public class CustomDatatype extends BaseDatatype {
 
-    private static final boolean USE_CACHE = true;
+    private static boolean USE_CACHE = false;
     private static final int CACHE_LIMIT = 100000;
 
-    private static final ScriptEngineManager engineManager = new ScriptEngineManager();
-    private static final ScriptEngine engine = engineManager.getEngineByName("JavaScript");
-    private static final Invocable invocable = (Invocable) engine;
+    private static ScriptEngine engine = (new ScriptEngineManager()).getEngineByName("JavaScript");
+    private static Invocable invocable = (Invocable) engine;
     private static final Map<String, JSCustomDatatypeFactory> cdtFactories = new HashMap<>();
     private static final Map<String, CustomDatatype> cdts = new HashMap<>();
 
@@ -91,6 +90,20 @@ public class CustomDatatype extends BaseDatatype {
         CustomDatatype datatype = new CustomDatatype(uri, cdtInterface);
         cdts.put(uri, datatype);
         return datatype;
+    }
+    
+    static void setUseCache(boolean useCache) {
+        USE_CACHE = useCache;
+    }
+    
+    static void reset() {
+        engine = (new ScriptEngineManager()).getEngineByName("JavaScript");
+        invocable = (Invocable) engine;
+        cdtFactories.clear();
+        for(String uri : cdts.keySet()) {
+            cdts.get(uri).cache.clear();
+        }
+        cdts.clear();
     }
 
     /**
@@ -311,6 +324,11 @@ public class CustomDatatype extends BaseDatatype {
 
         private final Queue<String> valid = new LinkedList<>();
         private final Map<String, CustomTypedValue> cachedItems = new HashMap<>();
+        
+        public void clear() {
+            valid.clear();
+            cachedItems.clear();
+        }
 
         public boolean contains(String key) {
             return valid.contains(key);
