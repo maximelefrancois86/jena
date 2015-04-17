@@ -15,21 +15,18 @@
  */
 package fr.emse.customdatatypes;
 
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import jdk.nashorn.internal.runtime.ECMAException;
-
 /**
  *
  * @author Maxime Lefrançois
  */
-public interface JSCustomDatatype {
+public interface CustomDatatype {
 
     /**
      * Gets the uri of this datatype.
      *
-     * @throws ECMAException
+     * @throws Exception
      */
-    String getUri() throws ECMAException;
+    Object getUri() throws Exception;
 
     /**
      * Checks if the given lexical form is in the lexical space of this
@@ -38,26 +35,9 @@ public interface JSCustomDatatype {
      * @param lexicalForm
      * @return true if the lexical form is in the lexical spece of this
      * datatype.
-     * @throws ECMAException
+     * @throws Exception
      */
-    boolean isLegal(String lexicalForm) throws ECMAException;
-
-    /**
-     * Instantiates a new literal with this datatype and the given lexical form.
-     *
-     * <code>
-     * ScriptObjectMirror mirror = jsCustomDatatype.createLiteral(uri);
-     * Invocable invocable = (Invocable) jsEngine;
-     * JSCustomLiteral jsCustomLiteral = invocable.getInterface(mirror, JSCustomLiteral.class);
-     * </code>
-     *
-     * @param lexicalForm
-     * @return The literal. MUST not be null, MUST conform to interface
-     * JSCustomLiteral.
-     * @throws ECMAException If the lexical form is not in the lexical space of
-     * this Datatype, or if something went wrong.
-     */
-    ScriptObjectMirror createLiteral(String lexicalForm) throws ECMAException;
+    Object isLegal(Object lexicalForm) throws Exception;
 
     /**
      * <p>
@@ -76,21 +56,30 @@ public interface JSCustomDatatype {
      * @param lexicalForm
      * @return true if this custom datatype recognises the datatype with the
      * given uri.
-     * @throws ECMAException
+     * @throws Exception
      */
-    boolean recognises(String uri) throws ECMAException;
+    Object recognisesDatatype(Object datatypeUri) throws Exception;
+
+    Object getRecognisedDatatypes() throws Exception;
+    
+    Object isEqual(Object lexicalForm1, Object lexicalForm2, Object datatypeUri2) throws Exception;
+
+    Object compare(Object lexicalForm1, Object lexicalForm2, Object datatypeUri2) throws Exception;
+
+    Object getNormalForm(Object lexicalForm1) throws Exception;
     
     /**
      * Gets a lexical form of a literal l with this datatype, such that l has
      * the same value as the given literal.
      *
-     * @param literal
      * @return The lexical form. MUST not be null.
-     * @throws ECMAException If the datatype of this literal does not recognise
+     * @throws Exception If the datatype of this literal does not recognise
      * the datatype of the given literal, or if there exists no literal with
      * this datatype that has the same value as the given literal, or if
      * something went wrong.
      */
-    ScriptObjectMirror importLiteral(ScriptObjectMirror literal) throws ECMAException;
+    Object importLiteral(Object lexicalForm, Object datatypeUri) throws Exception;
+    
+    Object exportLiteral(Object lexicalForm, Object datatypeUri) throws Exception;
 
 }

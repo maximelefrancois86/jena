@@ -15,8 +15,7 @@
  */
 package com.hp.hpl.jena.datatypes;
 
-import fr.emse.customdatatypes.JSCustomDatatype;
-import fr.emse.customdatatypes.JSCustomDatatypeFactory;
+import fr.emse.customdatatypes.CustomDatatypeFactory;
 import com.hp.hpl.jena.graph.impl.LiteralLabel;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -25,9 +24,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.Map;
-import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.script.Invocable;
@@ -35,6 +32,7 @@ import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 import jdk.nashorn.api.scripting.ScriptObjectMirror;
+import jdk.nashorn.internal.runtime.ConsString;
 import jdk.nashorn.internal.runtime.ECMAException;
 
 /**
@@ -43,12 +41,9 @@ import jdk.nashorn.internal.runtime.ECMAException;
  */
 public class CustomDatatype extends BaseDatatype {
 
-    private static boolean USE_CACHE = false;
-    private static final int CACHE_LIMIT = 100000;
-
     private static ScriptEngine engine = (new ScriptEngineManager()).getEngineByName("JavaScript");
     private static Invocable invocable = (Invocable) engine;
-    private static final Map<String, JSCustomDatatypeFactory> cdtFactories = new HashMap<>();
+    private static final Map<String, CustomDatatypeFactory> cdtFactories = new HashMap<>();
     private static final Map<String, CustomDatatype> cdts = new HashMap<>();
 
     /**
@@ -65,7 +60,7 @@ public class CustomDatatype extends BaseDatatype {
         }
         String fileurl = uri.contains("#") ? uri.substring(0, uri.indexOf("#")) : uri;
         // Fetch the Datatype Definition file.
-        JSCustomDatatypeFactory factory = getCustomDatatypeFactory(fileurl);
+        CustomDatatypeFactory factory = getCustomDatatypeFactory(fileurl);
         if (factory == null) {
             Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "No javascript file with function getDatatype(uri) could be found at URL <{0}>. A basic Datatype will be used.", uri);
             return null;
@@ -82,27 +77,21 @@ public class CustomDatatype extends BaseDatatype {
             Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Custom Datatype <{0}> cannot be instantiated using the method getDatatype found at its URL. A basic Datatype will be used instead.", uri);
             return null;
         }
-        JSCustomDatatype cdtInterface = invocable.getInterface(cdtMirror, JSCustomDatatype.class);
+        fr.emse.customdatatypes.CustomDatatype cdtInterface = invocable.getInterface(cdtMirror, fr.emse.customdatatypes.CustomDatatype.class);
         if (cdtInterface == null) {
             Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Custom Datatype <{0}> MUST implement interface JSCustomDatatype. A basic Datatype will be used instead.", uri);
             return null;
         }
+        Logger.getLogger(CustomDatatype.class.getName()).log(Level.INFO, "Loaded custom Datatype <{0}>.", uri);
         CustomDatatype datatype = new CustomDatatype(uri, cdtInterface);
         cdts.put(uri, datatype);
         return datatype;
     }
-    
-    static void setUseCache(boolean useCache) {
-        USE_CACHE = useCache;
-    }
-    
-    static void reset() {
+
+    public static void reset() {
         engine = (new ScriptEngineManager()).getEngineByName("JavaScript");
         invocable = (Invocable) engine;
         cdtFactories.clear();
-        for(String uri : cdts.keySet()) {
-            cdts.get(uri).cache.clear();
-        }
         cdts.clear();
     }
 
@@ -112,7 +101,7 @@ public class CustomDatatype extends BaseDatatype {
      * @param fileurl the URL of the custom Datatype definition file
      * @return the factory, null if none was found at this URL.
      */
-    public static JSCustomDatatypeFactory getCustomDatatypeFactory(String fileurl) {
+    public static CustomDatatypeFactory getCustomDatatypeFactory(String fileurl) {
         if (cdtFactories.containsKey(fileurl)) {
             return cdtFactories.get(fileurl);
         }
@@ -126,7 +115,7 @@ public class CustomDatatype extends BaseDatatype {
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
                 engine.eval(reader);
             }
-            JSCustomDatatypeFactory jsCustomDatatypeFactory = invocable.getInterface(JSCustomDatatypeFactory.class);
+            CustomDatatypeFactory jsCustomDatatypeFactory = invocable.getInterface(CustomDatatypeFactory.class);
             cdtFactories.put(fileurl, jsCustomDatatypeFactory);
             return jsCustomDatatypeFactory;
         } catch (MalformedURLException ex) {
@@ -134,24 +123,46 @@ public class CustomDatatype extends BaseDatatype {
         } catch (IOException | ScriptException ex) {
             Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Error while loading custom datatypes definition file: <" + fileurl + ">", ex);
         }
+        Logger.getLogger(CustomDatatype.class.getName()).log(Level.INFO, "Loaded custom datatype defintiion file at URL  <{0}>.", fileurl);
         cdtFactories.put(fileurl, null);
         return null;
     }
 
-    private final JSCustomDatatype cdtInterface;
-    private final CustomTypedValueCache cache;
+    private final fr.emse.customdatatypes.CustomDatatype cdtInterface;
 
-    private CustomDatatype(String uri, JSCustomDatatype cdtInterface) {
+    private CustomDatatype(String uri, fr.emse.customdatatypes.CustomDatatype cdtInterface) { 
         super(uri);
         if (uri == null || cdtInterface == null) {
             throw new IllegalArgumentException("Parameters must not be null.");
         }
-        this.cache = new CustomTypedValueCache();
         this.cdtInterface = cdtInterface;
     }
 
-    public JSCustomDatatype getInterface() {
+    public fr.emse.customdatatypes.CustomDatatype getInterface() {
         return cdtInterface;
+    }
+
+    /**
+     * Test whether the given string is a legal lexical form of this datatype.
+     */
+    @Override
+    public boolean isValid(String lexicalForm) {
+        Object isLegal;
+        try {
+            isLegal = cdtInterface.isLegal(lexicalForm);
+        } catch(Exception ex) {
+            Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "An exception occured: " + ex.getMessage(), ex);
+            return false;
+        }
+        if(isLegal == null) {
+            Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Return value must be non null");
+            return false;
+        }
+        if(!(isLegal instanceof Boolean)) {
+            Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Return value must be boolean. got: {0}", isLegal.getClass());
+            return false;
+        }
+        return (boolean) isLegal;
     }
 
     /**
@@ -161,64 +172,42 @@ public class CustomDatatype extends BaseDatatype {
      */
     @Override
     public Object parse(String lexicalForm) throws DatatypeFormatException {
-        CustomTypedValue ctv;
-        if (USE_CACHE) {
-            ctv = cache.getCustomTypedValue(lexicalForm);
-            if (ctv == null) {
-                ctv = cache.put(lexicalForm);
-            }
-        } else {
-            ctv = new CustomTypedValue(lexicalForm, getURI());
+        if (!isValid(lexicalForm)) {
+            throw new DatatypeFormatException("Invalid lexical form: \"" + lexicalForm + "\"^^<" + getURI() + ">.");
         }
-        if (ctv.isLegal()) {
-            return ctv;
+        Object normalForm;
+        try {
+            normalForm = cdtInterface.getNormalForm(lexicalForm);
+        } catch(Exception ex) {
+            throw new DatatypeFormatException(lexicalForm, this, "An exception occured: " + ex.getMessage());
         }
-        throw new DatatypeFormatException("Error while instantiating custom datatype \"" + lexicalForm + "\"^^<" + getURI() + ">.");
+        if(normalForm == null) {
+            throw new DatatypeFormatException(lexicalForm, this, "Return value must be non null");
+        }
+        if(!(normalForm instanceof ConsString)) {
+            throw new DatatypeFormatException(lexicalForm, this, "Return value must be string. got: "+normalForm.getClass());
+        }
+        return new TypedValue(((ConsString)normalForm).toString(), getURI());
     }
-
-    /**
-     * Test whether the given string is a legal lexical form of this datatype.
-     */
-    @Override
-    public boolean isValid(String lexicalForm) {
-        CustomTypedValue ctv;
-        if (USE_CACHE) {
-            ctv = cache.getCustomTypedValue(lexicalForm);
-            if (ctv == null) {
-                ctv = cache.put(lexicalForm);
-            }
-        } else {
-            ctv = new CustomTypedValue(lexicalForm, getURI());
-        }
-        return ctv.isLegal();
-    }
-
+    
     @Override
     public boolean isValidLiteral(LiteralLabel lit) {
-        if (super.isValidLiteral(lit)) {
-            return true;
-        }
-        String datatypeUri = lit.getDatatypeURI();
-        if (datatypeUri.equals(getURI())) {
-            return isValid(lit.getLexicalForm());
-        }
+        Object lexicalForm;
         try {
-            ScriptObjectMirror oldMirror = ((CustomTypedValue) getCustomDatatype(lit.getDatatypeURI()).parse(lit.getLexicalForm())).getMirror();
-            try {
-                if(cdtInterface.importLiteral(oldMirror) != null) {
-                    return true;
-                }
-            } catch (ECMAException ex) {
-            }
-            try {
-                if(oldMirror.callMember("exportTo", getURI()) !=null) {
-                    return true;
-                }
-            } catch (ECMAException ex) {
-            }
-        } catch (ECMAException ex) {
+            lexicalForm = cdtInterface.importLiteral(lit.getLexicalForm(), lit.getDatatypeURI());
+        } catch(Exception ex) {
+            Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "An exception occured: " + ex.getMessage(), ex);
+            return false;
         }
-        return false;
+        if(lexicalForm == null) {
+            Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Return value must be non null");
+            return false;
+        }
+        if(!(lexicalForm instanceof String)) {
+            Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Return value must be string. got: {0}", lexicalForm.getClass());
+            return false;
+        }
+        return true;
     }
 
     @Override
@@ -226,127 +215,23 @@ public class CustomDatatype extends BaseDatatype {
         if (super.isEqual(litLabel1, litLabel2)) {
             return true;
         }
-        if (!litLabel1.getDatatypeURI().equals(getURI())) {
-            throw new IllegalArgumentException("Expecting first argument to be of datatype <" + getURI() + ">. Got <" + litLabel1.getDatatypeURI() + ">.");
+        if(!litLabel1.getDatatypeURI().equals(this.getURI())) {
+            throw new  UnsupportedOperationException("Argument was thought to have this RDFDatatype as datatype");
         }
-        try {
-            CustomDatatype cdt1 = (CustomDatatype) litLabel1.getDatatype();
-            CustomDatatype cdt2 = (CustomDatatype) litLabel2.getDatatype();
-            ScriptObjectMirror mirror1 = ((CustomTypedValue) cdt1.parse(litLabel1.getLexicalForm())).getMirror();
-            ScriptObjectMirror mirror2 = ((CustomTypedValue) cdt2.parse(litLabel2.getLexicalForm())).getMirror();
-            try {
-                return (boolean) mirror1.callMember("equals", mirror2);
-            } catch(NullPointerException | ECMAException ex) {
-                java.util.logging.Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Error while calling member equals.", ex);
-            }
-            try {
-                return (boolean) mirror2.callMember("equals", mirror1);
-            } catch(NullPointerException | ECMAException ex) {
-                java.util.logging.Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Error while calling member equals.", ex);
-            }
-        } catch (DatatypeFormatException ex) {
-            java.util.logging.Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Error while calling member equals.", ex);
+        if (litLabel1.isWellFormed() && litLabel2.isWellFormed() && litLabel1.getDefaultHashcode()==litLabel2.getDefaultHashcode()) {
+            return litLabel1.getValue().equals(litLabel2.getValue());
         }
         return false;
     }
 
-    /**
-     * Cannonicalise a java Object value to a normal form. Primarily used in
-     * cases such as xsd:integer to reduce the Java object representation to the
-     * narrowest of the Number subclasses to ensure that indexing of typed
-     * literals works.
-     */
     @Override
     public Object cannonicalise(Object value) {
-        if (!(value instanceof CustomTypedValue)) {
-            return null;
+        TypedValue typedValue = (TypedValue) value;
+        if(!typedValue.datatypeURI.equals(this.getURI())) {
+            throw new  UnsupportedOperationException("Argument was thought to have this RDFDatatype as datatype");
         }
-        CustomTypedValue ctv = (CustomTypedValue) value;
-        try {
-            ScriptObjectMirror mirror = (ScriptObjectMirror) ctv.getMirror().callMember("cannonicalise");
-            String lexicalForm = (String) mirror.callMember("getLexicalForm");
-            return new CustomTypedValue(lexicalForm, getURI(), mirror);
-        } catch (NullPointerException | ECMAException ex) {
-            Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Error in method cannonicalise for literal \"" + ctv.lexicalValue + "\"^^<" + ctv.datatypeURI + ">", ex);
-            return null;
-        }
+        return parse(typedValue.lexicalValue);
     }
 
-    public class CustomTypedValue extends TypedValue {
-
-        private boolean legalityChecked = false;
-        private boolean isLegal = false;
-
-        private boolean isSet = false;
-        private ScriptObjectMirror jsMirror = null;
-
-        public CustomTypedValue(String lexicalValue, String datatypeURI) {
-            this(lexicalValue, datatypeURI, null);
-        }
-        
-        public CustomTypedValue(String lexicalValue, String datatypeURI, ScriptObjectMirror mirror) {
-            super(lexicalValue, datatypeURI);
-            if(mirror!=null) {
-                this.isSet = true;
-                this.jsMirror = mirror;
-            }
-        }
-        
-        public boolean isLegal() {
-            if (!legalityChecked) {
-                legalityChecked = true;
-                try {
-                    isLegal = cdtInterface.isLegal(lexicalValue);
-                } catch (ECMAException ex) {
-                    Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Error while evaluating validity of lexical form \"" + lexicalValue + "\" for datatype <" + getURI() + ">.", ex);
-                }
-            }
-            return isLegal;
-        }
-
-        public ScriptObjectMirror getMirror() {
-            if (isLegal() && !isSet) {
-                try {
-                    jsMirror = cdtInterface.createLiteral(lexicalValue);
-                } catch (ECMAException ex) {
-                    Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Error while instantiating custom literal \"" + lexicalValue + "\"^^<" + getURI() + ">", ex);
-                }
-                if (jsMirror == null) {
-                    Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Error while instantiating custom literal \"{0}\"^^<{1}> got null.", new Object[]{lexicalValue, getURI()});
-                }
-                isSet = true;
-            }
-            return jsMirror;
-        }
-    }
-
-    private class CustomTypedValueCache {
-
-        private final Queue<String> valid = new LinkedList<>();
-        private final Map<String, CustomTypedValue> cachedItems = new HashMap<>();
-        
-        public void clear() {
-            valid.clear();
-            cachedItems.clear();
-        }
-
-        public boolean contains(String key) {
-            return valid.contains(key);
-        }
-
-        public CustomTypedValue getCustomTypedValue(String lexicalForm) {
-            return cachedItems.get(lexicalForm);
-        }
-
-        public CustomTypedValue put(String lexicalForm) {
-            if (valid.size() >= CACHE_LIMIT) {
-                String oldest = valid.poll();
-                cachedItems.remove(oldest);
-            }
-            CustomTypedValue customTypedValue = new CustomTypedValue(lexicalForm, getURI());
-            cachedItems.put(lexicalForm, customTypedValue);
-            return customTypedValue;
-        }
-
-    }
+    
 }

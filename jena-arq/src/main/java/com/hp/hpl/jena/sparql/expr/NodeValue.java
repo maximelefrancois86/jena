@@ -84,9 +84,6 @@ import com.hp.hpl.jena.sparql.graph.NodeTransform;
 import com.hp.hpl.jena.sparql.serializer.SerializationContext;
 import com.hp.hpl.jena.sparql.util.*;
 import com.hp.hpl.jena.vocabulary.RDF;
-import java.util.logging.Level;
-import jdk.nashorn.api.scripting.ScriptObjectMirror;
-import jdk.nashorn.internal.runtime.ECMAException;
 
 public abstract class NodeValue extends ExprNode {
     // Maybe:: NodeValueStringLang - strings with language tag
@@ -581,30 +578,13 @@ public abstract class NodeValue extends ExprNode {
             case VSPACE_CUSTOM:
                 // Two custom literals
                 // call the javascript function to compare these node values.
+
                 NodeValueCustom nvc1 = (NodeValueCustom) nv1;
                 NodeValueCustom nvc2 = (NodeValueCustom) nv2;
                 if (nvc1.getLexicalForm().equals(nvc2.getLexicalForm()) && nvc1.getDatatypeURI().equals(nvc2.getDatatypeURI())) {
                     return true;
                 }
-                CustomDatatype cdt1 = nvc1.getDatatype();
-                CustomDatatype cdt2 = nvc2.getDatatype();
-                try {
-                    ScriptObjectMirror mirror1 = ((CustomDatatype.CustomTypedValue) cdt1.parse(nvc1.getLexicalForm())).getMirror();
-                    ScriptObjectMirror mirror2 = ((CustomDatatype.CustomTypedValue) cdt2.parse(nvc2.getLexicalForm())).getMirror();
-                    try {
-                        return (boolean) mirror1.callMember("equals", mirror2);
-                    } catch(NullPointerException | ECMAException ex) {
-                        java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member equals.", ex);
-                    }
-                    try {
-                        return (boolean) mirror2.callMember("equals", mirror1);
-                    } catch(NullPointerException | ECMAException ex) {
-                        java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member equals.", ex);
-                    }
-                } catch (DatatypeFormatException ex) {
-                    java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member equals.", ex);
-                   return false;
-                }
+                return nvc1.asNode().getLiteral().getValue().equals(nv2.asNode().getLiteral().getValue());
             case VSPACE_UNKNOWN: {
                 // One or two unknown value spaces, or one has a lang tag (but not both).
                 Node node1 = nv1.getNode();
@@ -864,35 +844,29 @@ public abstract class NodeValue extends ExprNode {
                 }
 
             case VSPACE_CUSTOM:
-               // Two custom literals
+                // Two custom literals
                 // call the javascript function to compare these node values.
                 NodeValueCustom nvc1 = (NodeValueCustom) nv1;
                 NodeValueCustom nvc2 = (NodeValueCustom) nv2;
                 if (nvc1.getLexicalForm().equals(nvc2.getLexicalForm()) && nvc1.getDatatypeURI().equals(nvc2.getDatatypeURI())) {
                     return 0;
                 }
-                CustomDatatype cdt1 = nvc1.getDatatype();
-                CustomDatatype cdt2 = nvc2.getDatatype();
+                String lexicalForm1 = nvc1.getLexicalForm();
+                String lexicalForm2 = nvc2.getLexicalForm();
+                String dturi1 = nvc1.getDatatype().getURI();
+                String dturi2 = nvc2.getDatatype().getURI();
                 try {
-                    ScriptObjectMirror mirror1 = ((CustomDatatype.CustomTypedValue) cdt1.parse(nvc1.getLexicalForm())).getMirror();
-                    ScriptObjectMirror mirror2 = ((CustomDatatype.CustomTypedValue) cdt2.parse(nvc2.getLexicalForm())).getMirror();
-                    try {
-                        int comp = (int) mirror1.callMember("compareTo", mirror2);
-                        return comp;
-                    } catch(NullPointerException | ECMAException ex) {
-                    java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member compareTo.", ex);
-                    }
-                    try {
-                        int comp = (int) mirror2.callMember("compareTo", mirror1);
-                        return -comp;
-                    } catch(NullPointerException | ECMAException ex) {
-                    java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member compareTo.", ex);
-                    }
-                } catch (DatatypeFormatException ex) {
-                    java.util.logging.Logger.getLogger(NodeValue.class.getName()).log(Level.WARNING, "Error while calling member compareTo.", ex);
+                    return (int) nvc1.getDatatype().getInterface().compare(lexicalForm1, lexicalForm2, dturi2);
+                } catch (Exception ex) {
                 }
+                try {
+                    return (int) nvc2.getDatatype().getInterface().compare(lexicalForm2, lexicalForm1, dturi1);
+                } catch (Exception ex) {
+                }
+
                 raise(new ExprNotComparableException("Can't compare " + nv1 + " and " + nv2));
                 throw new ARQInternalErrorException("NodeValue.raise returned");
+
             case VSPACE_UNKNOWN: {
                 // One or two unknown value spaces.
                 Node node1 = nv1.asNode();
@@ -919,7 +893,8 @@ public abstract class NodeValue extends ExprNode {
                 raise(new ExprNotComparableException("Can't compare (incompatible value spaces)" + nv1 + " and " + nv2));
                 throw new ARQInternalErrorException("NodeValue.raise returned");
         }
-        throw new ARQInternalErrorException("Compare failure " + nv1 + " and " + nv2);
+        throw new ARQInternalErrorException(
+                "Compare failure " + nv1 + " and " + nv2);
     }
 
     public static ValueSpaceClassification classifyValueOp(NodeValue nv1, NodeValue nv2) {
@@ -1173,6 +1148,7 @@ public abstract class NodeValue extends ExprNode {
     public Duration getDuration() {
         raise(new ExprEvalTypeException("Not a duration: " + this));
         return null;
+
     }
 
     // ----------------------------------------------------------------
@@ -1192,6 +1168,7 @@ public abstract class NodeValue extends ExprNode {
 
         if (isPlainLiteral) {
             return new NodeValueString(node.getLiteralLexicalForm(), node);
+
         }
 
         if (hasLangTag) {
@@ -1213,7 +1190,8 @@ public abstract class NodeValue extends ExprNode {
         if (!node.getLiteral().isWellFormed()) {
             if (NodeValue.VerboseWarnings) {
                 String tmp = FmtUtils.stringForNode(node);
-                Log.warn(NodeValue.class, "Datatype format exception: " + tmp);
+                Log
+                        .warn(NodeValue.class, "Datatype format exception: " + tmp);
             }
             // Invalid lexical form.
             return new NodeValueNode(node);

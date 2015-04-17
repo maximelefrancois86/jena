@@ -22,7 +22,7 @@ import jdk.nashorn.internal.runtime.ECMAException;
  *
  * @author Maxime Lefrançois
  */
-public interface JSCustomDatatypeFactory {
+public interface CustomDatatypeFactory {
 
     /**
      * Gets the custom datatype with the given URI.

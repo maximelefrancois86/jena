@@ -64,6 +64,7 @@ public class TypeMapper {
     }
 
     public static void reset() {
+        CustomDatatype.reset();
         theTypeMap = new TypeMapper();
         theTypeMap.registerDatatype(XMLLiteralType.theXMLLiteralType);
         theTypeMap.registerDatatype(RDFLangString.rdfLangString);
@@ -85,7 +86,6 @@ public class TypeMapper {
         // add mapping for URL class
         theTypeMap.classToDT.put(URL.class, theTypeMap.classToDT.get(URI.class));
         
-        CustomDatatype.reset();
     }
 
     public TypeMapper() {
