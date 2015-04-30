@@ -37,7 +37,7 @@ public interface CustomDatatype {
      * datatype.
      * @throws Exception
      */
-    Object isLegal(Object lexicalForm) throws Exception;
+    Object isWellFormed(Object lexicalForm) throws Exception;
 
     /**
      * <p>

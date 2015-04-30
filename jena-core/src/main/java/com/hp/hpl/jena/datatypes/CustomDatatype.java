@@ -147,22 +147,22 @@ public class CustomDatatype extends BaseDatatype {
      */
     @Override
     public boolean isValid(String lexicalForm) {
-        Object isLegal;
+        Object isWellFormed;
         try {
-            isLegal = cdtInterface.isLegal(lexicalForm);
+            isWellFormed = cdtInterface.isWellFormed(lexicalForm);
         } catch(Exception ex) {
             Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "An exception occured: " + ex.getMessage(), ex);
             return false;
         }
-        if(isLegal == null) {
+        if(isWellFormed == null) {
             Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Return value must be non null");
             return false;
         }
-        if(!(isLegal instanceof Boolean)) {
-            Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Return value must be boolean. got: {0}", isLegal.getClass());
+        if(!(isWellFormed instanceof Boolean)) {
+            Logger.getLogger(CustomDatatype.class.getName()).log(Level.WARNING, "Return value must be boolean. got: {0}", isWellFormed.getClass());
             return false;
         }
-        return (boolean) isLegal;
+        return (boolean) isWellFormed;
     }
 
     /**
